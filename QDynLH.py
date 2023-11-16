@@ -16,8 +16,6 @@ import timeit
 from scipy.interpolate import splrep, splev, CubicSpline, bisplrep, bisplev
 import sys
 
-import cupy as cp
-import cupy.linalg as cla
 
 ###### Author: Edith Leal-Sanchez
 #
@@ -255,9 +253,9 @@ def cheb_prop_internal_nl_nacme_cpu(r, R, PSI, Enes, K_r, K_R, D_r, D_R, Gs, Vs,
     psi_Mdt+= (phi1*spe.jv(1.,complex(alpha))*2.)
 
     #The K1psi, K2psi,Upsi,KrRpsi and Drpsi togheter correspond to the application of the Hamiltonian to the wavefunction. As it is needed that it is applied in the recurrences, the steps to obtain it are repeated, multiplicated by the corresponding factor.
-    a_m = 2.*spe.jv(26.,complex(alpha))
+    a_m = 2.*spe.jv(56.,complex(alpha))
     print(a_m, alpha)
-    for k in range(2, 27):
+    for k in range(2, 57):
         psi_split = np.split(phi1,n)
         VPdiag = np.zeros(np.shape(psi_split),dtype=np.complex_)
         Kpsi = np.zeros(np.shape(psi_split),dtype=np.complex_)
@@ -579,9 +577,9 @@ def cheb_prop_internal_nl_nacme_gpu_fft(r, R, PSI, Enes, K_r, K_R, D_r, D_R, Gs,
     #phi.append(phi1)
 
     #The K1psi, K2psi,Upsi,KrRpsi and Drpsi togheter correspond to the application of the Hamiltonian to the wavefunction. As it is needed that it is applied in the recurrences, the steps to obtain it are repeated, multiplicated by the corresponding factor.
-    a_m = 2.*spe.jv(56,complex(alpha))
+    a_m = 2.*spe.jv(42,complex(alpha))
     print(a_m, alpha)
-    for k in range(2, 57):
+    for k in range(2, 43):
         psi_split = cp.split(phi1,n)
         psi_split = cp.array(psi_split) 
         VPdiag = cp.zeros(cp.shape(psi_split),dtype=cp.complex_)
@@ -661,143 +659,146 @@ def nacme_calc(tipo,mlist,nac_cv,alpha,beta,gamma,r_cv):
     '''The routine will return a number, corresponding to the projected NAC matrix element for the introduced geometry'''
 
 
-    if len(mlist) == 2:
-        0.
-
-    elif len(mlist) == 3:
-        0.
-        #aqui si hay vth y vph
-    
-    else:
-        m1 = float(mlist[0])
-        m2 = float(mlist[1])
-        m3 = float(mlist[2])
+    m1 = float(mlist[0])
+    m2 = float(mlist[1])
+    m3 = float(mlist[2])
+    if len(mlist) > 3:
         m4 = float(mlist[3])
         M = m1+m2+m3+m4
-        W1_inv = np.zeros((12,12))              #3N dimensions for the analytic transformation, and here 4 atoms are being accounted.
-        W1_inv[:3,:3] = m1/M*np.eye(3)          
-        W1_inv[:3,3:6] = m2/M*np.eye(3)         #The Jacobian with respect to the transformed intermediate coordinates is easier to compute,
-        W1_inv[:3,6:9] = m3/M*np.eye(3)         #so it is calculated in this way and later inverted.
+    else:
+        M = m1+m2+m3
+    W1_inv = np.zeros((12,12))              #3N dimensions for the analytic transformation, and here 4 atoms are being accounted.
+    W1_inv[:3,:3] = m1/M*np.eye(3)          
+    W1_inv[:3,3:6] = m2/M*np.eye(3)         #The Jacobian with respect to the transformed intermediate coordinates is easier to compute,
+    W1_inv[:3,6:9] = m3/M*np.eye(3)         #so it is calculated in this way and later inverted.
+    if len(mlist) > 3:
         W1_inv[:3,9:] = m4/M*np.eye(3)
 
-        W1_inv[3:6,:3], W1_inv[6:9,6:9], W1_inv[9:,3:6] = np.eye(3), np.eye(3), np.eye(3)  
-        W1_inv[3:6,3:6], W1_inv[6:9,:3], W1_inv[9:,9:] = -np.eye(3), -np.eye(3), -np.eye(3)
-        
-        W1 = la.inv(W1_inv)                     #Obtaining the Jacobian for the needed transformation
+    W1_inv[3:6,:3], W1_inv[6:9,6:9], W1_inv[9:,3:6] = np.eye(3), np.eye(3), np.eye(3)  
+    W1_inv[3:6,3:6], W1_inv[6:9,:3], W1_inv[9:,9:] = -np.eye(3), -np.eye(3), -np.eye(3)
+    
+    W1 = la.inv(W1_inv)                     #Obtaining the Jacobian for the needed transformation
 
-        S = [ [ np.cos(alpha)*np.cos(gamma)-np.sin(alpha)*np.cos(beta)*np.sin(gamma), -np.cos(alpha)*np.sin(gamma)-np.sin(alpha)*np.cos(beta)*np.cos(gamma), np.sin(alpha)*np.sin(beta)], [ np.sin(alpha)*np.cos(gamma)+np.cos(alpha)*np.cos(beta)*np.sin(gamma), -np.sin(alpha)*np.sin(gamma)+np.cos(alpha)*np.cos(beta)*np.cos(gamma), -np.cos(alpha)*np.sin(beta)], [ np.sin(beta)*np.sin(gamma), np.sin(beta)*np.cos(gamma), np.cos(beta) ]]
+    S = [ [ np.cos(alpha)*np.cos(gamma)-np.sin(alpha)*np.cos(beta)*np.sin(gamma), -np.cos(alpha)*np.sin(gamma)-np.sin(alpha)*np.cos(beta)*np.cos(gamma), np.sin(alpha)*np.sin(beta)], [ np.sin(alpha)*np.cos(gamma)+np.cos(alpha)*np.cos(beta)*np.sin(gamma), -np.sin(alpha)*np.sin(gamma)+np.cos(alpha)*np.cos(beta)*np.cos(gamma), -np.cos(alpha)*np.sin(beta)], [ np.sin(beta)*np.sin(gamma), np.sin(beta)*np.cos(gamma), np.cos(beta) ]]
 
-        dS_da = [ [ -np.sin(alpha)*np.cos(gamma)-np.cos(alpha)*np.cos(beta)*np.sin(gamma), np.sin(alpha)*np.sin(gamma)-np.cos(alpha)*np.cos(beta)*np.cos(gamma), np.cos(alpha)*np.sin(beta)], [ np.cos(alpha)*np.cos(gamma)-np.sin(alpha)*np.cos(beta)*np.sin(gamma), -np.cos(alpha)*np.sin(gamma)-np.sin(alpha)*np.cos(beta)*np.cos(gamma), np.sin(alpha)*np.sin(beta)], [ 0.,0.,0]]
+    dS_da = [ [ -np.sin(alpha)*np.cos(gamma)-np.cos(alpha)*np.cos(beta)*np.sin(gamma), np.sin(alpha)*np.sin(gamma)-np.cos(alpha)*np.cos(beta)*np.cos(gamma), np.cos(alpha)*np.sin(beta)], [ np.cos(alpha)*np.cos(gamma)-np.sin(alpha)*np.cos(beta)*np.sin(gamma), -np.cos(alpha)*np.sin(gamma)-np.sin(alpha)*np.cos(beta)*np.cos(gamma), np.sin(alpha)*np.sin(beta)], [ 0.,0.,0]]
 
-        dS_db = [ [ np.sin(alpha)*np.sin(beta)*np.sin(gamma), np.sin(alpha)*np.sin(beta)*np.cos(gamma), np.sin(alpha)*np.cos(beta)], [ -np.cos(alpha)*np.sin(beta)*np.sin(gamma), -np.cos(alpha)*np.sin(beta)*np.cos(gamma), -np.cos(alpha)*np.cos(beta)], [np.cos(beta)*np.sin(gamma), np.cos(beta)*np.cos(gamma), -np.sin(gamma)]]
+    dS_db = [ [ np.sin(alpha)*np.sin(beta)*np.sin(gamma), np.sin(alpha)*np.sin(beta)*np.cos(gamma), np.sin(alpha)*np.cos(beta)], [ -np.cos(alpha)*np.sin(beta)*np.sin(gamma), -np.cos(alpha)*np.sin(beta)*np.cos(gamma), -np.cos(alpha)*np.cos(beta)], [np.cos(beta)*np.sin(gamma), np.cos(beta)*np.cos(gamma), -np.sin(gamma)]]
 
-        dS_dg = [ [-np.cos(alpha)*np.sin(gamma)-np.sin(alpha)*np.cos(beta)*np.cos(gamma), -np.cos(alpha)*np.cos(gamma)+np.sin(alpha)*np.cos(beta)*np.sin(gamma), 0.], [-np.sin(alpha)*np.sin(gamma)+np.cos(alpha)*np.cos(beta)*np.cos(gamma), -np.sin(alpha)*np.cos(gamma) -np.cos(alpha)*np.cos(beta)*np.sin(gamma), 0.], [ np.sin(beta)*np.cos(gamma), -np.sin(beta)*np.sin(gamma), 0.]]
+    dS_dg = [ [-np.cos(alpha)*np.sin(gamma)-np.sin(alpha)*np.cos(beta)*np.cos(gamma), -np.cos(alpha)*np.cos(gamma)+np.sin(alpha)*np.cos(beta)*np.sin(gamma), 0.], [-np.sin(alpha)*np.sin(gamma)+np.cos(alpha)*np.cos(beta)*np.cos(gamma), -np.sin(alpha)*np.cos(gamma) -np.cos(alpha)*np.cos(beta)*np.sin(gamma), 0.], [ np.sin(beta)*np.cos(gamma), -np.sin(beta)*np.sin(gamma), 0.]]
 
-        a1 = np.array(r_cv[:3])
-        a2 = np.array(r_cv[3:6])
-        a3 = np.array(r_cv[6:9])
-        a4 = np.array(r_cv[9:])
+    a1 = np.array(r_cv[:3])
+    a2 = np.array(r_cv[3:6])
+    a3 = np.array(r_cv[6:9])
+    a4 = np.array(r_cv[9:])
 
-        R1_v = a1-a2
-        R1 = la.norm(R1_v)
+    R1_v = a1-a2
+    R1 = la.norm(R1_v)
 
-        R2_v = a3-a2
-        R2 = la.norm(R2_v)
-
+    R2_v = a3-a2
+    R2 = la.norm(R2_v)
+    
+    Phi1 = np.arccos(np.dot(R1_v,R2_v)/(R1*R2))
+    
+    if len(mlist) > 3:
         R3_v = a4-a3
         R3 = la.norm(R3_v)
 
-        Phi1 = np.arccos(np.dot(R1_v,R2_v)/(R1*R2))
         Phi2 = np.arccos(np.dot(-R2_v,R3_v)/(R2*R3))
 
         n1 = np.cross( -R1_v/R1, R2_v/R2 )
         n2 = np.cross(  R2_v/R2, R3_v/R3 )
 
         tau = np.arccos(np.dot(n1,n2)/(la.norm(n1)*la.norm(n2)))
-        
-        th = np.pi-np.arccos(R2_v[0]/la.norm(R2_v)) 
-        ph = -np.pi+np.arctan2(R2_v[2],R2_v[1])  
+    
+    th = np.pi-np.arccos(R2_v[0]/la.norm(R2_v)) 
+    ph = -np.pi+np.arctan2(R2_v[2],R2_v[1])  
 
+    if len(mlist) > 3:
         r1 = R2
         r2 = R3
         r3 = R1
-
-        phi2 = Phi2
         phi3 = Phi1
-
         tau3 = tau
-        
-        
-        dp1 = [-r1,0.,0.]                               #Rotated distance vectors. 
-        dp2 = [-r2*np.cos(phi2),  r2*np.sin(phi2), 0.]   
+
         dp3 = [ r3*np.cos(phi3),  r3*np.sin(phi3)*np.cos(tau3), -r3*np.sin(phi3)*np.sin(tau3)] 
-        
-        W2 = np.zeros((12,12))
-        #eta1
-        W2[3:6,3] = np.matmul(dS_da,dp1)
-        W2[3:6,4] = np.matmul(dS_db,dp1)
-        W2[3:6,5] = np.matmul(dS_dg,dp1)
-        #eta2
-        W2[6:9,3] = np.matmul(dS_da,dp2)
-        W2[6:9,4] = np.matmul(dS_db,dp2)
-        W2[6:9,5] = np.matmul(dS_dg,dp2)
         #eta3 
         W2[9:,3] = np.matmul(dS_da,dp3)
         W2[9:,4] = np.matmul(dS_db,dp3)
         W2[9:,5] = np.matmul(dS_dg,dp3)
-        #sigma2_1
-        W2[3,6] = -1.
-        W2[3:6,6:9] = np.matmul(S,W2[3:6,6:9])
-        #sigma2_2
-        W2[6:9,7] = [-np.cos(phi2),  np.sin(phi2), 0.]
-        W2[6:9,8] = [r2*np.sin(phi2), r2*np.cos(phi2), 0.]
-        W2[6:9,6:9] = np.matmul(S,W2[6:9,6:9])
         #sigma3_2
         W2[9:,9] =  [ np.cos(phi3), np.sin(phi3)*np.cos(tau3), -np.sin(phi3)*np.sin(tau3) ]
         W2[9:,10] = [ -r3*np.sin(phi3), r3*np.cos(phi3)*np.cos(tau3), -r3*np.cos(phi3)*np.sin(tau3)]
         W2[9:,11] = [ 0., -r3*np.sin(phi3)*np.sin(tau3), -r3*np.sin(phi3)*np.cos(tau3)]
         W2[9:,9:] = np.matmul(S,W2[9:,9:])
 
-        W = np.matmul(W1, W2)
 
-        R1 = [ [1., 0., 0.], [ 0., np.cos(ph), np.sin(ph)], [0., -np.sin(ph), np.cos(ph)]]
-        R2 = [ [np.cos(th), np.sin(th), 0.], [ -np.sin(th), np.cos(th), 0.], [0., 0., 1.]]
-        all_nacm_c = np.zeros(12)
+    else:
+        r1 = R1
+        r2 = R2
 
-        for mm3 in range(4):
-            all_nacm_c[(mm3*3):(mm3+1)*3] = np.matmul(R1,nac_cv[(mm3*3):(mm3+1)*3]) 
-        for mm3 in range(4):
-            all_nacm_c[(mm3*3):(mm3+1)*3] = np.matmul(R2,all_nacm_c[(mm3*3):(mm3+1)*3])
-
-        if tipo == 'r1':
-            #nacme = np.dot(W[-6], all_nacm_c)
-            nacme = np.dot(W[-3], all_nacm_c)
-
-        elif tipo == 'r2':
-            #nacme = np.dot(W[-5], all_nacm_c)
-            nacme = np.dot(W[-6], all_nacm_c)
-
-        elif tipo == 'phi1':
-            #nacme = np.dot(W[-4], all_nacm_c)
-            nacme = np.dot(W[-2], all_nacm_c)
-
-        elif tipo == 'r3':
-            #nacme = np.dot(W[-3], all_nacm_c)
-            nacme = np.dot(W[-5], all_nacm_c)
-
-        elif tipo == 'phi2':
-            #nacme = np.dot(W[-2], all_nacm_c)
-            nacme = np.dot(W[-4], all_nacm_c)
-
-        elif tipo == 'tau':
-            nacme = np.dot(W[-1], all_nacm_c)
+    phi2 = Phi2
 
 
-        return(nacme)
+    dp1 = [-r1,0.,0.]                               #Rotated distance vectors. 
+    dp2 = [-r2*np.cos(phi2),  r2*np.sin(phi2), 0.]   
+    
+    W2 = np.zeros((12,12))
+    #eta1
+    W2[3:6,3] = np.matmul(dS_da,dp1)
+    W2[3:6,4] = np.matmul(dS_db,dp1)
+    W2[3:6,5] = np.matmul(dS_dg,dp1)
+    #eta2
+    W2[6:9,3] = np.matmul(dS_da,dp2)
+    W2[6:9,4] = np.matmul(dS_db,dp2)
+    W2[6:9,5] = np.matmul(dS_dg,dp2)
+    #sigma2_1
+    W2[3,6] = -1.
+    W2[3:6,6:9] = np.matmul(S,W2[3:6,6:9])
+    #sigma2_2
+    W2[6:9,7] = [-np.cos(phi2),  np.sin(phi2), 0.]
+    W2[6:9,8] = [r2*np.sin(phi2), r2*np.cos(phi2), 0.]
+    W2[6:9,6:9] = np.matmul(S,W2[6:9,6:9])
+    
+    W = np.matmul(W1, W2)
+
+    R1 = [ [1., 0., 0.], [ 0., np.cos(ph), np.sin(ph)], [0., -np.sin(ph), np.cos(ph)]]
+    R2 = [ [np.cos(th), np.sin(th), 0.], [ -np.sin(th), np.cos(th), 0.], [0., 0., 1.]]
+    all_nacm_c = np.zeros(12)
+
+    for mm3 in range(4):
+        all_nacm_c[(mm3*3):(mm3+1)*3] = np.matmul(R1,nac_cv[(mm3*3):(mm3+1)*3]) 
+    for mm3 in range(4):
+        all_nacm_c[(mm3*3):(mm3+1)*3] = np.matmul(R2,all_nacm_c[(mm3*3):(mm3+1)*3])
+
+    if tipo == 'r1':
+        #nacme = np.dot(W[-6], all_nacm_c)
+        nacme = np.dot(W[-3], all_nacm_c)
+
+    elif tipo == 'r2':
+        #nacme = np.dot(W[-5], all_nacm_c)
+        nacme = np.dot(W[-6], all_nacm_c)
+
+    elif tipo == 'phi1':
+        #nacme = np.dot(W[-4], all_nacm_c)
+        nacme = np.dot(W[-2], all_nacm_c)
+
+    elif tipo == 'r3':
+        #nacme = np.dot(W[-3], all_nacm_c)
+        nacme = np.dot(W[-5], all_nacm_c)
+
+    elif tipo == 'phi2':
+        #nacme = np.dot(W[-2], all_nacm_c)
+        nacme = np.dot(W[-4], all_nacm_c)
+
+    elif tipo == 'tau':
+        nacme = np.dot(W[-1], all_nacm_c)
+
+
+    return(nacme)
 
 def cot(ang):
     return((1./np.tan(ang)))
-
 
 def G_mel(r,R,Ms,r_cv):
     '''Ms is a list which contains the masses'''
@@ -805,6 +806,7 @@ def G_mel(r,R,Ms,r_cv):
     '''r_cv es el mismo vector que en nacme_calc'''
     m1 = float(Ms[0])
     m2 = float(Ms[1])
+    m3 = float(Ms[2])
     if (r,R) == ('r1','r2') or (r,R) == ('r2','r1'):
 
         R1 = r_cv[:3]
@@ -819,13 +821,14 @@ def G_mel(r,R,Ms,r_cv):
         r1 = la.norm(r1)
         r2 = la.norm(r2)
 
-        G_rr = G_RR = 1/m1 + 1/m2
+        G_rr = 1/m1 + 1/m2
+        G_RR = 1/m2 + 1/m3
         G_rR = (1./m1)*np.cos(phi213)
-        
+
         Vp = (1./(m1*r1*r2))*np.cos(phi213)
 
         if (r,R) == ('r1','r2'):
-            
+
             return(G_rr, G_RR, G_rR, 0., 0., 0., 0., Vp)
 
         elif(r,R) == ('r2','r1'):
@@ -833,7 +836,6 @@ def G_mel(r,R,Ms,r_cv):
             return(G_RR, G_rr, G_rR, 0., 0., 0., 0., Vp)
 
     elif (r,R) == ('r1','phi1') or (r,R) == ('phi1','r1'):
-        m3 = float(Ms[2])
 
         R1 = r_cv[:3]
         R2 = r_cv[3:6]
@@ -843,7 +845,7 @@ def G_mel(r,R,Ms,r_cv):
         r2 = R3-R2
 
         phi123 = np.arccos(np.dot(r1,r2)/(la.norm(r1)*la.norm(r2)))
-        
+
         r1 = la.norm(r1)
         r2 = la.norm(r2)
 
@@ -891,7 +893,7 @@ def G_mel(r,R,Ms,r_cv):
 
         Grr = (1./(m1*r12**2.)) + (1./(m3*r23**2.)) + ( (1./m2)*( 1./r12**2. + 1./r23**2. -( (2.*np.cos(phi123))/(r12*r23)) ))
         dGrr_dr = (2.*np.sin(phi123))/(m2*r12*r23)
-        Vp_rr = (np.cos(phi123)/(2.*m2*r12*r23)) - (Grr/8.*(2.+(cot(phi123)**2.))) 
+        Vp_rr = (np.cos(phi123)/(2.*m2*r12*r23)) - (Grr/8.*(2.+(cot(phi123)**2.)))
 
         GRR = (1./(m2*r12**2.)) + (1./(m4*r14**2.)) + ( (1./m1)*( 1./r12**2. + 1./r14**2. -( (2.*np.cos(phi214))/(r12*r14)) ))
         dGRR_dR = (2.*np.sin(phi214))/(m1*r12*r14)
@@ -919,7 +921,7 @@ def G_mel(r,R,Ms,r_cv):
 
         phi123 = np.arccos( np.dot(r12,r23)/(la.norm(r12)*la.norm(r34)))
         phi234 = np.arccos( np.dot(r23,r34)/(la.norm(r12)*la.norm(r34)))
-        
+
         n1 = np.cross(r12/la.norm(r12),r23/la.norm(r23))
         n2 = np.cross(r23/la.norm(r23),r34/la.norm(r34))
 
@@ -928,18 +930,18 @@ def G_mel(r,R,Ms,r_cv):
         r12 = la.norm(r12)
         r23 = la.norm(r23)
         r34 = la.norm(r34)
-        
+
         lam123 = ((1./r12) - (np.cos(phi123)/r23))*(1./np.sin(phi123))
         lam432 = ((1./r34) - (np.cos(phi123)/r23))*(1./np.sin(phi234))
 
         G_rr =  1./m1 + 1./m2
-        
+
         G_rt = -(1./(m2*r23))*np.sin(phi123)*cot(phi234)*np.sin(tau1234)
         dGrt_dt = -(1./(m2*r23))*np.sin(phi123)*cot(phi234)*np.cos(tau1234)
         Vrt = (1./(2.*m2*r12*r23))*np.sin(phi123)*cot(phi234)*np.cos(tau1234)
 
         G_tt = (1./(m1*((r12*np.sin(phi123))**2.))) + (1./(m4*((r34*np.sin(phi234))**2.))) + ((1./m2)*(lam123**2. + (cot(phi234)/r23)**2.)) + ((1./m3)*(lam432**2. + (cot(phi123)/r23)**2.)) - ( 2.*( (np.cos(tau1234)/r23)*( (lam123/m2)*cot(phi234) + (lam432/m3)*cot(phi123) )))
-        dGtt_dt = 2.*( (np.sin(tau1234)/r23)*( (lam123/m2)*cot(phi234) + (lam432/m3)*cot(phi123) )) 
+        dGtt_dt = 2.*( (np.sin(tau1234)/r23)*( (lam123/m2)*cot(phi234) + (lam432/m3)*cot(phi123) ))
 
         if (r,R) == ('r1','tau'):
 
@@ -1004,12 +1006,12 @@ def G_mel(r,R,Ms,r_cv):
 
             return(Gtt, Gpp, Gpt, dGtt_dt, dGpp_dp, dGpt_dt, dGpt_dp, Vprim)
 
-    elif (r,R) = ('r1','1') or (r,R) == ('r2','1') or (r,R) == ('r3','1'):
+    elif (r,R) == ('r1','1') or (r,R) == ('r2','1') or (r,R) == ('r3','1'):
         G_rr =  1./m1 + 1./m2
-        
+
         return(G_rr, 0.,0.)
 
-    elif (r,R) = ('tau','1'):
+    elif (r,R) == ('tau','1'):
         m3 = float(Ms[2])
         m4 = float(Ms[3])
 
@@ -1036,7 +1038,7 @@ def G_mel(r,R,Ms,r_cv):
 
         lam123 = ((1./r12) - (np.cos(phi123)/r23))*(1./np.sin(phi123))
         lam432 = ((1./r34) - (np.cos(phi123)/r23))*(1./np.sin(phi234))
-        
+
         G_tt = (1./(m1*((r12*np.sin(phi123))**2.))) + (1./(m4*((r34*np.sin(phi234))**2.))) + ((1./m2)*(lam123**2. + (cot(phi234)/r23)**2.)) + ((1./m3)*(lam432**2. + (cot(phi123)/r23)**2.)) - ( 2.*( (np.cos(tau1234)/r23)*( (lam123/m2)*cot(phi234) + (lam432/m3)*cot(phi123) )))
         dGtt_dt = 2.*( (np.sin(tau1234)/r23)*( (lam123/m2)*cot(phi234) + (lam432/m3)*cot(phi123) ))
 
@@ -1046,7 +1048,6 @@ def G_mel(r,R,Ms,r_cv):
     else:
         print('Sorry! Not available')
         print('exit')
-
 
 def triang_calc(r, R, nacm_r, nacm_R, G_d):
 
@@ -1275,21 +1276,21 @@ if firstl[1] in cord_type:
 
     r.sort()
     R.sort()
-    
 
+    
     R_m,r_m=np.meshgrid(R,r)
 
-    T_r = TFG(r)
-    T_R = TFG(R)
+    #T_r = TFG(r)
+    #T_R = TFG(R)
 
-    D_dr = DF(r)
-    D_dR = DF(R)
+    #D_dr = DF(r)
+    #D_dR = DF(R)
     
-    T_r = TFG_2(r)
-    T_R = TFG_2(R)
+    #T_r = TFG_2(r)
+    #T_R = TFG_2(R)
 
-    D_dr = DF_2(r)
-    D_dR = DF_2(R)
+    #D_dr = DF_2(r)
+    #D_dR = DF_2(R)
     
     Grr_d = {}
     GRR_d = {}
@@ -1303,8 +1304,8 @@ if firstl[1] in cord_type:
     ms = fg[0].split()
     for a10 in range(len(ind3)):
         rvec = all_g[ind3[a10]]
-        Grr_d[ind3[a10]],GRR_d[ind3[a10]],GrR_d[ind3[a10]],dGrr_dr_d[ind3[a10]],dGRR_dR_d[ind3[a10]],dGrR_dr_d[ind3[a10]],dGrR_dR_d[ind3[a10]],Vpd[ind3[a10]] = G_mel(firstl[0],firstl[1],ms[1:int(ms[0])+1],rvec)
-
+        Grr_d[ind3[a10]],GRR_d[ind3[a10]],GrR_d[ind3[a10]],dGrr_dr_d[ind3[a10]],dGRR_dR_d[ind3[a10]],dGrR_dr_d[ind3[a10]],dGrR_dR_d[ind3[a10]],Vpd[ind3[a10]] = G_mel(firstl[0],firstl[1],ms[2:int(ms[1])+2],np.array(rvec))
+    
     Grr = np.zeros((len(r),len(R)))
     GRR = np.zeros((len(r),len(R)))
     GrR = np.zeros((len(r),len(R)))
@@ -1327,7 +1328,7 @@ if firstl[1] in cord_type:
             Vp[a11,a12] = Vpd[(np.around(r[a11],decimals=3),np.around(R[a12],decimals=3))]
     
     Gs_d = { 'Grr' : Grr, 'GRR': GRR, 'GrR' : GrR, 'dGrr_dr' : dGrr_dr, 'dGRR_dR' : dGRR_dR, 'dGrR_dr' : dGrR_dr, 'dGrR_dR' : dGrR_dR }
-
+    
 
     Energs = np.zeros((len(elem[2:]),len(r),len(R)))
 
@@ -1338,6 +1339,9 @@ if firstl[1] in cord_type:
 
 
                 Energs[a2,a3,a4] = alls[( np.around(r[a3],decimals=3), np.around(R[a4],decimals=3) ) ][a2] + Vp[a3,a4]
+    
+    r = np.array(r)/0.5292
+    R = np.array(R)/0.5292
     
     print('Do you want to use a Gaussian wave packet as the initial condition?')
     res = input()
@@ -1372,13 +1376,13 @@ if firstl[1] in cord_type:
                 nac_v = np.array(nacmes[a5][a6].split(),dtype=float)  #Notice that it is very important for the data in the nacme files to have the same order as the data in the energs file.
                 if a5 == 0:
                     rvec = all_g[ind2[a6-1]]
-                    nacms_r[ind2[a6-1]] = [nacme_calc(ms[-2],ms[1:int(ms[0])+1],nac_v,0.,0.,0.,rvec)]
-                    nacms_R[ind2[a6-1]] = [nacme_calc(ms[-1],ms[1:int(ms[0])+1],nac_v,0.,0.,0.,rvec)]
+                    nacms_r[ind2[a6-1]] = [nacme_calc(ms[-2],ms[2:int(ms[1])+2],nac_v,0.,0.,0.,rvec)]
+                    nacms_R[ind2[a6-1]] = [nacme_calc(ms[-1],ms[2:int(ms[1])+2],nac_v,0.,0.,0.,rvec)]
 
                 else:
                     rvec = all_g[ind2[a6-1]]
-                    nacms_r[ind2[a6-1]].append(nacme_calc(ms[-2],ms[1:int(ms[0])+1],nac_v,0.,0.,0.,rvec))
-                    nacms_R[ind2[a6-1]].append(nacme_calc(ms[-1],ms[1:int(ms[0])+1],nac_v,0.,0.,0.,rvec))
+                    nacms_r[ind2[a6-1]].append(nacme_calc(ms[-2],ms[2:int(ms[1])+2],nac_v,0.,0.,0.,rvec))
+                    nacms_R[ind2[a6-1]].append(nacme_calc(ms[-1],ms[2:int(ms[1])+2],nac_v,0.,0.,0.,rvec))
 
 
                     #checar multiplicar los nacmes por la transformacion inversa a ver que me da...
@@ -1420,242 +1424,255 @@ if firstl[1] in cord_type:
                 Tsup_l[a14][:,a13] = signal.savgol_filter(Tsup_l[a14][:,a13],15,3)
                 Tinf_l[a14][:,a13] = signal.savgol_filter(Tinf_l[a14][:,a13],15,3)
             
-        #xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-        rn = np.linspace(3.4,7.8,300)
-        Rn = np.linspace(-0.1,np.max(R)+0.1,640)
-        Rmn,rmn = np.meshgrid(Rn,rn)
-        Tsup_ln = np.zeros((len(Energs), len(rn),len(Rn)))
-        Tinf_ln = np.zeros((len(Energs), len(rn),len(Rn)))
-        Energsn = np.zeros((len(Energs), len(rn),len(Rn)))
+        #xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx 
+    print('Data for the IAP and the interpolation. If the data is already interpolated introduce your original parameters')
+    print('Introduce the number of grid points in r:')
+    n_r = int(input())
+    print('Introduce the number of grid points in R:')
+    n_R = int(input())
+    print('Introduce the distance for the extension of the grid in r (in au or radians)')
+    ddr = float(input)
+    print('Introduce the distance for the extension of the grid in r (in au or radians)')
+    ddR = float(input)
+    rn = np.linspace(np.min(r)-ddr,np.max(r)+ddr,n_r)
+    Rn = np.linspace(np.min(R)-ddR,np.max(R)+ddR,n_R)
+    Rmn,rmn = np.meshgrid(Rn,rn)
+    Tsup_ln = np.zeros((len(Energs), len(rn),len(Rn)))
+    Tinf_ln = np.zeros((len(Energs), len(rn),len(Rn)))
+    Energsn = np.zeros((len(Energs), len(rn),len(Rn)))
+    if len(nacmes) > 0:
         Nacms_rn = np.zeros((len(Energs), len(rn),len(Rn)))
         Nacms_Rn = np.zeros((len(Energs), len(rn),len(Rn)))
-        for a12 in range(len(Energs)):
+    for a12 in range(len(Energs)):
+        feln = itp.RectBivariateSpline(r,R,Energs[a12])
+        if len(nacmes) > 0:
             fsln = itp.RectBivariateSpline(r,R,Tsup_l[a12])
             filn = itp.RectBivariateSpline(r,R,Tinf_l[a12])
-            feln = itp.RectBivariateSpline(r,R,Energs[a12])
             fnrln = itp.RectBivariateSpline(r,R,Nacms_r[a12])
             fnRln = itp.RectBivariateSpline(r,R,Nacms_R[a12])
-
+        
+        Energsn[a12] = feln(rn,Rn)
+        if len(nacmes) > 0:
             Tsup_ln[a12] = fsln(rn,Rn)
             Tinf_ln[a12] = filn(rn,Rn)
-            Energsn[a12] = feln(rn,Rn)
             Nacms_rn[a12] = fnrln(rn,Rn)
             Nacms_Rn[a12] = fnRln(rn,Rn)
 
-            for a13 in range(len(rn)):
+        for a13 in range(len(rn)):
+            Energsn[a12][a13] = signal.savgol_filter(Energsn[a12][a13],5,2)
+            if len(nacmes) > 0:
                 Tsup_ln[a12][a13] = signal.savgol_filter(Tsup_ln[a12][a13],19,2)
                 Tinf_ln[a12][a13] = signal.savgol_filter(Tinf_ln[a12][a13],19,2)
-                Energsn[a12][a13] = signal.savgol_filter(Energsn[a12][a13],13,2)
                 Nacms_rn[a12][a13] =signal.savgol_filter(Nacms_rn[a12][a13],19,2)
                 Nacms_Rn[a12][a13] =signal.savgol_filter(Nacms_Rn[a12][a13],19,2)
-            for a13 in range(len(Rn)):
+        for a13 in range(len(Rn)):
+            Energsn[a12][:,a13] = signal.savgol_filter(Energsn[a12][:,a13],5,2)
+            if len(nacmes) > 0:
                 Tsup_ln[a12][:,a13] = signal.savgol_filter(Tsup_ln[a12][:,a13],25,2)
                 Tinf_ln[a12][:,a13] = signal.savgol_filter(Tinf_ln[a12][:,a13],25,2)
-                Energsn[a12][:,a13] = signal.savgol_filter(Energsn[a12][:,a13],13,2)
                 Nacms_rn[a12][:,a13] =signal.savgol_filter(Nacms_rn[a12][:,a13],25,2)
                 Nacms_Rn[a12][:,a13] =signal.savgol_filter(Nacms_Rn[a12][:,a13],25,2)
 
-        Grrn = np.zeros((len(rn),len(Rn))) 
-        GRRn = np.zeros((len(rn),len(Rn)))
-        GrRn = np.zeros((len(rn),len(Rn)))
-        dGrr_drn = np.zeros((len(rn),len(Rn)))
-        dGRR_dRn = np.zeros((len(rn),len(Rn)))
-        dGrR_drn = np.zeros((len(rn),len(Rn)))
-        dGrR_dRn = np.zeros((len(rn),len(Rn)))
-        fgrln = itp.RectBivariateSpline(r,R,Grr)
-        fgRln = itp.RectBivariateSpline(r,R,GRR)
-        fgrRln = itp.RectBivariateSpline(r,R,GrR)
-        fdgrln = itp.RectBivariateSpline(r,R,dGrr_dr)
-        fdgRln = itp.RectBivariateSpline(r,R,dGRR_dR)
-        fdgrRln1 = itp.RectBivariateSpline(r,R,dGrR_dr)
-        fdgrRln2 = itp.RectBivariateSpline(r,R,dGrR_dR)
-        Grrn = fgrln(rn,Rn) 
-        GRRn = fgRln(rn,Rn) 
-        GrRn = fgrRln(rn,Rn)
-        dGrr_drn = fdgrln(rn,Rn)
-        dGRR_dRn = fdgRln(rn,Rn)
-        dGrR_drn = fdgrRln1(rn,Rn)
-        dGrR_dRn = fdgrRln2(rn,Rn)
+    Grrn = np.zeros((len(rn),len(Rn))) 
+    GRRn = np.zeros((len(rn),len(Rn)))
+    GrRn = np.zeros((len(rn),len(Rn)))
+    dGrr_drn = np.zeros((len(rn),len(Rn)))
+    dGRR_dRn = np.zeros((len(rn),len(Rn)))
+    dGrR_drn = np.zeros((len(rn),len(Rn)))
+    dGrR_dRn = np.zeros((len(rn),len(Rn)))
+    fgrln = itp.RectBivariateSpline(r,R,Grr)
+    fgRln = itp.RectBivariateSpline(r,R,GRR)
+    fgrRln = itp.RectBivariateSpline(r,R,GrR)
+    fdgrln = itp.RectBivariateSpline(r,R,dGrr_dr)
+    fdgRln = itp.RectBivariateSpline(r,R,dGRR_dR)
+    fdgrRln1 = itp.RectBivariateSpline(r,R,dGrR_dr)
+    fdgrRln2 = itp.RectBivariateSpline(r,R,dGrR_dR)
+    Grrn = fgrln(rn,Rn) 
+    GRRn = fgRln(rn,Rn) 
+    GrRn = fgrRln(rn,Rn)
+    dGrr_drn = fdgrln(rn,Rn)
+    dGRR_dRn = fdgRln(rn,Rn)
+    dGrR_drn = fdgrRln1(rn,Rn)
+    dGrR_dRn = fdgrRln2(rn,Rn)
 
-        v_iop = np.zeros(( len(Energsn), len(rn), len(Rn)),dtype=np.complex_)
-        for a15 in range(len(Energsn)):
-            for v1 in range(len(rn)):
-                for v2 in range(len(Rn)):
-                    if rn[v1] < np.min(r):
-                        r00 = np.min(r)
-                        v_iop[a15,v1,v2]+= -50.5j*(rn[v1]-r00)**2
+    print('Introduce the magnitude of the IAP in r:') #The program is built for parabolic IAPs at the edge of the grid. If any other behavior is wanted, you should modify it manually.
+    vio_r = float(input())
+    print('Introduce the magnitude of the IAP in r:') 
+    vio_R = float(input())
+    v_iop = np.zeros(( len(Energsn), len(rn), len(Rn)),dtype=np.complex_)
+    for a15 in range(len(Energsn)):
+        for v1 in range(len(rn)):
+            for v2 in range(len(Rn)):
+                if rn[v1] < np.min(r):
+                    r00 = np.min(r)
+                    v_iop[a15,v1,v2]+= -vio_r*(rn[v1]-r00)**2
+                    if len(nacmes) > 0:
                         Tsup_ln[a15,v1,v2] = 0.
                         Tinf_ln[a15,v1,v2] = 0.
                         Nacms_rn[a15,v1,v2] = 0.
                         Nacms_Rn[a15,v1,v2] = 0.
-                    if Rn[v2] < np.min(R):
-                        R00 = np.min(R)
-                        v_iop[a15,v1,v2]+= -230.5j*(Rn[v2]-R00)**2
+                if Rn[v2] < np.min(R):
+                    R00 = np.min(R)
+                    v_iop[a15,v1,v2]+= -vio_R*(Rn[v2]-R00)**2
+                    if len(nacmes) > 0:
                         Tsup_ln[a15,v1,v2] = 0.
                         Tinf_ln[a15,v1,v2] = 0.
                         Nacms_rn[a15,v1,v2] = 0.
                         Nacms_Rn[a15,v1,v2] = 0.
-                    if rn[v1] > np.max(r):
-                        r00 =np.max(r)
-                        v_iop[a15,v1,v2]+= -50.5j*(rn[v1]-r00)**2
+                if rn[v1] > np.max(r):
+                    r00 =np.max(r)
+                    v_iop[a15,v1,v2]+= -vio_r*(rn[v1]-r00)**2
+                    if len(nacmes) > 0:
                         Tsup_ln[a15,v1,v2] = 0.
                         Tinf_ln[a15,v1,v2] = 0.
                         Nacms_rn[a15,v1,v2] = 0.
                         Nacms_Rn[a15,v1,v2] = 0.
-                    if Rn[v2] > np.max(R):
-                        R00 =np.max(R)
-                        v_iop[a15,v1,v2]+= -230.5j*(Rn[v2]-R00)**2
+                if Rn[v2] > np.max(R):
+                    R00 =np.max(R)
+                    v_iop[a15,v1,v2]+= -vio_R*(Rn[v2]-R00)**2
+                    if len(nacmes) > 0:
                         Tsup_ln[a15,v1,v2] = 0.
                         Tinf_ln[a15,v1,v2] = 0.
                         Nacms_rn[a15,v1,v2] = 0.
                         Nacms_Rn[a15,v1,v2] = 0.
 
-        for a1 in range(len(rn)):
-            for b1 in range(len(Rn)):
+    for a1 in range(len(rn)):
+        for b1 in range(len(Rn)):
+            for c1 in range(len(v_iop)):
                 if v_iop[0,a1,b1].imag < v_iop[0,50,0].imag:
-                    v_iop[0,a1,b1] = v_iop[0,50, 0]
-                    v_iop[1,a1,b1] = v_iop[1,50, 0]
-                    v_iop[2,a1,b1] = v_iop[2,50, 0]
+                    v_iop[c1,a1,b1] = v_iop[c1,50, 0]
 
 
-        wwr,DFr = DF_s(rn)
-        wwR,DFR = DF_s(Rn)
- 
-        Energsn=np.array(Energsn,dtype=np.complex_)
-        Energsn+=v_iop
+    wwr,DFr = DF_s(rn)
+    wwR,DFR = DF_s(Rn)
 
-        Psi0n = np.exp( -(rmn-r0)**2./sigma_r )*np.exp( -(Rmn-R0)**2./sigma_R )*np.exp(1j*p_r*(rmn-r0))*np.exp(1j*p_R*(Rmn-R0))    #Initial psi as a Gaussian wavepacket. Change if wanted
+    Energsn=np.array(Energsn,dtype=np.complex_)
+    Energsn+=v_iop
 
-        fig2 = plt.figure()
-        ax2 = fig2.add_subplot(111, projection='3d')
-        ax2.plot_surface(Rmn, rmn, (Energsn[0].real-np.min(Energsn[0]))*27.211 )
-        ax2.plot_surface(Rmn, rmn, Psi0n)
-        ax2.set_zlim((-0.05,12.))
-        ax2.set_xlabel('$\%s$' %'tau')
-        ax2.set_ylabel('$r$')
-        fig2 = plt.figure()
-        ax2 = fig2.add_subplot(111, projection='3d')
-        ax2.plot_surface(Rmn, rmn, (Energsn[1].real-np.min(Energsn[0]))*27.211, color='orange')
-        ax2.set_zlim((-0.05,12.))
-        ax2.set_xlabel('$\%s$' %'tau')
-        ax2.set_ylabel('$r$')
-        fig2 = plt.figure()
-        ax2 = fig2.add_subplot(111, projection='3d')
-        ax2.plot_surface(Rmn, rmn, (Energsn[2].real-np.min(Energsn[0]))*27.211, color='green')
-        ax2.set_zlim((-0.05,12.))
-        ax2.set_xlabel('$\%s$' %'tau')
-        ax2.set_ylabel('$r$')
-        plt.show()
-        plt.close() 
-        
-        fig2 = plt.figure()
-        ax2 = fig2.add_subplot(111, projection='3d')
-        ax2.plot_surface(Rmn, rmn, Tsup_ln[0].real)
-        fig2 = plt.figure()
-        ax2 = fig2.add_subplot(111, projection='3d')
-        ax2.plot_surface(Rmn, rmn, Tsup_ln[1].real)
-        fig2 = plt.figure()
-        ax2 = fig2.add_subplot(111, projection='3d')
-        ax2.plot_surface(Rmn, rmn, Tsup_ln[2].real)
-        plt.show()
-        plt.close() 
+    fig2 = plt.figure()
+    ax2 = fig2.add_subplot(111, projection='3d')
+    ax2.plot_surface(Rmn, rmn, Energsn[0].real)
+    plt.show()
+    plt.close()
 
-        Psi0n = np.exp( -(rmn-r0)**2./sigma_r )*np.exp( -(Rmn-R0)**2./sigma_R )*np.exp(1j*p_r*(rmn-r0))*np.exp(1j*p_R*(Rmn-R0))    #Initial psi as a Gaussian wavepacket. Change if wanted
-        fig2 = plt.figure()
-        ax2 = fig2.add_subplot(111, projection='3d')
-        ax2.plot_surface(Rmn, rmn, Psi0n)
-        plt.show()
-        plt.close() 
-        psi_t_p = np.zeros( (len(Energs)*len(rn), len(Rn)), dtype=np.complex_)
+    Psi0n = np.exp( -(rmn-r0)**2./sigma_r )*np.exp( -(Rmn-R0)**2./sigma_R )*np.exp(1j*p_r*(rmn-r0))*np.exp(1j*p_R*(Rmn-R0))    #Initial psi as a Gaussian wavepacket. Change if wanted
 
-        psi_t_p[st*len(rn):(st+1)*len(rn)] = Psi0n/np.sqrt(np.tensordot(np.conj(Psi0n),Psi0n))
+    psi_t_p = np.zeros( (len(Energs)*len(rn), len(Rn)), dtype=np.complex_)
+
+    psi_t_p[st*len(rn):(st+1)*len(rn)] = Psi0n/np.sqrt(np.tensordot(np.conj(Psi0n),Psi0n))
+
+    plt.contour(Rn, rn, Energsn[0].real,45,cmap='rainbow')
+    plt.colorbar()
+    plt.contour(Rn, rn, Psi0n,45)
+    plt.show()
+    plt.clf()
+
+    ms = fg[0].split()
+    if ms[0] == 'GPU':
+        import cupy as cp
+        import cupy.linalg as cla
 
         T_r = TFG_2(rn)
         T_R = TFG_2(Rn)
 
         D_dr = DF_2(rn)
         D_dR = DF_2(Rn)
-        
         Gs_d = { 'Grr' : cp.asarray(Grrn), 'GRR': cp.asarray(GRRn), 'GrR' : cp.asarray(GrRn), 'dGrr_dr' : cp.asarray(dGrr_drn), 'dGRR_dR' : cp.asarray(dGRR_dRn), 'dGrR_dr' : cp.asarray(dGrR_drn), 'dGrR_dR' : cp.asarray(dGrR_dRn) }
-        
         dr = rn[1]-rn[0]
         dR = Rn[1]-Rn[0]
         Emax = Gs_d['Grr']*(np.pi**2./dr**2) + Gs_d['GRR']*(np.pi**2./dR**2.) + cp.asarray(Energsn) + 2.5
         Eall = [ cp.asnumpy(Emax), cp.asnumpy(Energsn) -2.5 ]
- 
 
-        fu = open('poblaciones.txt','w')
-        fu.write('time \t P0 \t P1 \t P2\n')
-        fil_e = open('energs_tot.txt','w')
-        fil_e.write('time \t Energy_r \t Energy_i \n')
-        for p in range(1,len(time)):
+    elif ms[0] == 'CPU':
+        T_r = TFG(rn)
+        T_R = TFG(Rn)
+
+        D_dr = DF(rn)
+        D_dR = DF(Rn)
+        Gs_d = { 'Grr' : Grrn, 'GRR': GRRn, 'GrR' : GrRn, 'dGrr_dr' : dGrr_drn, 'dGRR_dR' : dGRR_dRn, 'dGrR_dr' : dGrR_drn, 'dGrR_dR' : dGrR_dRn }
+        dr = rn[1]-rn[0]
+        dR = Rn[1]-Rn[0]
+        Emax = Gs_d['Grr']*(np.pi**2./dr**2) + Gs_d['GRR']*(np.pi**2./dR**2.) + Energsn + 2.5
+        Eall = [ Emax, Energsn -2.5 ]
+    
+    print(Energsn.shape)
+    if len(nacmes) == 0:     
+        Tsup_ln = np.zeros(Energsn.shape)
+        Tinf_ln = np.zeros(Energsn.shape)
+        Nacms_rn = np.zeros(Energsn.shape)
+        Nacms_Rn = np.zeros(Energsn.shape)
+
+    fu = open('poblaciones.txt','w')
+    fu.write('time \t P0 \t P1 \t P2\n')
+    fil_e = open('energs_tot.txt','w')
+    fil_e.write('time \t Energy_r \t Energy_i \n')
+    for p in range(1,len(time)):
+        if ms[0] == 'GPU':
             psi_t_p = cheb_prop_internal_nl_nacme_gpu_fft(rn, Rn, cp.asarray(psi_t_p), Eall, cp.asarray(T_r), cp.asarray(T_R), cp.asarray(D_dr), cp.asarray(D_dR), Gs_d, cp.asarray(Energsn), 0., cp.asarray(Tsup_ln), cp.asarray(Tinf_ln), cp.asarray(Nacms_rn), cp.asarray(Nacms_Rn), len(Energsn), 0., time[p-1], time[p] )
-
 
             psi_t_p = cp.asnumpy(psi_t_p)
             r = cp.asnumpy(rn)
             R = cp.asnumpy(Rn)
-            psia = psi_t_p[:len(Psi0n)]
-            psib = psi_t_p[len(Psi0n):2*len(Psi0n)]
-            psic = psi_t_p[2*len(Psi0n):]
-            fu.write('%.2f \t' %time[p].real)
-            fu.write('%.8f \t' %np.tensordot(np.conj(psia),psia).real)
-            fu.write('%.8f \t' %np.tensordot(np.conj(psib),psib).real)
-            fu.write('%.8f \n' %np.tensordot(np.conj(psic),psic).real)
-            #print('ptau,pphi', ptau_av_b, ktmax, pphi_av_b, kpmax)
-            if p% 8 ==0:	
-                    fig2 = plt.figure()
-                    ax2 = fig2.add_subplot(111, projection='3d')
-                    ax2.plot_surface(Rmn, rmn, (np.conj(psia)*psia).real, color='y')
-                    ax2.view_init(elev=43,azim=-28)
-                    ax2.set_title('%.6f fs' %(time[p].real/41.34))
-                    #ax2.set_zlim((0.,0.5e-7))
-                    plt.savefig('psi-2d-trial-s0-'+str(p)+'.png')
-                    plt.close()
-                    fig2 = plt.figure()
-                    ax2 = fig2.add_subplot(111, projection='3d')
-                    ax2.plot_surface(Rmn, rmn, (np.conj(psib)*psib).real, color='orange')
-                    ax2.view_init(elev=43,azim=-28)
-                    ax2.set_title('%.6f fs' %(time[p].real/41.34))
-                    #ax2.set_zlim((0.,0.02))
-                    plt.savefig('psi-2d-trial-s1-'+str(p)+'.png')
-                    plt.close()
-                    fig2 = plt.figure()
-                    ax2 = fig2.add_subplot(111, projection='3d')
-                    ax2.plot_surface(Rmn, rmn, (np.conj(psic)*psic).real, color='slategray')
-                    ax2.view_init(elev=43,azim=-28)
-                    ax2.set_title('%.6f fs' %(time[p].real/41.34))
-                    #ax2.set_zlim((0.,0.02))
-                    plt.savefig('psi-2d-trial-s2-'+str(p)+'.png')
-                    plt.close()
+        elif ms[0] == 'CPU':
+            psi_t_p = cheb_prop_internal_nl_nacme_cpu(rn, Rn, psi_t_p, Eall, T_r, T_R, D_dr, D_dR, Gs_d, Energsn, 0., Tsup_ln, Tinf_ln, Nacms_rn, Nacms_Rn, len(Energsn), 0., time[p-1], time[p] )
 
-                    plt.contour(Rn,rn, (np.conj(psia)*psia).real, 35, cmap='rainbow')
-                    plt.title('%.6f fs' %(time[p].real/41.34))
-                    plt.colorbar()
-                    plt.savefig('psi-2d-cont-s0-'+str(p)+'.png')
-                    plt.clf()
-                    plt.contour(Rn,rn, (np.conj(psib)*psib).real, 35, cmap='jet')
-                    plt.title('%.6f fs' %(time[p].real/41.34))
-                    plt.colorbar()
-                    plt.savefig('psi-2d-cont-s1-'+str(p)+'.png')
-                    plt.clf()
-                    plt.contour(Rn,rn, (np.conj(psic)*psic).real, 35, cmap='turbo')
-                    plt.title('%.6f fs' %(time[p].real/41.34))
-                    plt.colorbar()
-                    plt.savefig('psi-2d-cont-s2-'+str(p)+'.png')
-                    plt.clf()
-            if p%15 == 0:
-                psia = butter_tau(wwr,psia,230)
-                psib = butter_tau(wwr,psib,230)
-                psic = butter_tau(wwr,psic,230)
+        psia = psi_t_p[:len(Psi0n)]
+        psib = psi_t_p[len(Psi0n):2*len(Psi0n)]
+        psic = psi_t_p[2*len(Psi0n):]
+        fu.write('%.2f \t' %time[p].real)
+        fu.write('%.8f \t' %np.tensordot(np.conj(psia),psia).real)
+        fu.write('%.8f \t' %np.tensordot(np.conj(psib),psib).real)
+        fu.write('%.8f \n' %np.tensordot(np.conj(psic),psic).real)
+        #print('ptau,pphi', ptau_av_b, ktmax, pphi_av_b, kpmax)
+        if p% 8 ==0:	
+                fig2 = plt.figure()
+                ax2 = fig2.add_subplot(111, projection='3d')
+                ax2.plot_surface(Rmn, rmn, (np.conj(psia)*psia).real, color='y')
+                ax2.view_init(elev=43,azim=-28)
+                ax2.set_title('%.6f fs' %(time[p].real/41.34))
+                #ax2.set_zlim((0.,0.5e-7))
+                plt.savefig('psi-2d-trial-s0-'+str(p)+'.png')
+                plt.close()
+                #fig2 = plt.figure()
+                #ax2 = fig2.add_subplot(111, projection='3d')
+                #ax2.plot_surface(Rmn, rmn, (np.conj(psib)*psib).real, color='orange')
+                #ax2.view_init(elev=43,azim=-28)
+                #ax2.set_title('%.6f fs' %(time[p].real/41.34))
+                #ax2.set_zlim((0.,0.02))
+                #plt.savefig('psi-2d-trial-s1-'+str(p)+'.png')
+                #plt.close()
+                #fig2 = plt.figure()
+                #ax2 = fig2.add_subplot(111, projection='3d')
+                #ax2.plot_surface(Rmn, rmn, (np.conj(psic)*psic).real, color='slategray')
+                #ax2.view_init(elev=43,azim=-28)
+                #ax2.set_title('%.6f fs' %(time[p].real/41.34))
+                #ax2.set_zlim((0.,0.02))
+                #plt.savefig('psi-2d-trial-s2-'+str(p)+'.png')
+                #plt.close()
 
-                psia = butter_phi(wwR,psia,450)
-                psib = butter_phi(wwR,psib,450)
-                psic = butter_phi(wwR,psic,450)
+                plt.contour(Rn,rn, (np.conj(psia)*psia).real, 35, cmap='rainbow')
+                plt.title('%.6f fs' %(time[p].real/41.34))
+                plt.colorbar()
+                plt.savefig('psi-2d-cont-s0-'+str(p)+'.png')
+                plt.clf()
+                #plt.contour(Rn,rn, (np.conj(psib)*psib).real, 35, cmap='jet')
+                #plt.title('%.6f fs' %(time[p].real/41.34))
+                #plt.colorbar()
+                #plt.savefig('psi-2d-cont-s1-'+str(p)+'.png')
+                #plt.clf()
+                #plt.contour(Rn,rn, (np.conj(psic)*psic).real, 35, cmap='turbo')
+                #plt.title('%.6f fs' %(time[p].real/41.34))
+                #plt.colorbar()
+                #plt.savefig('psi-2d-cont-s2-'+str(p)+'.png')
+                #plt.clf()
+        if p%15 == 0:
+            psia = butter_tau(wwr,psia,700)
 
-                psi_t_p = np.vstack((psia,psib,psic))
+            psia = butter_phi(wwR,psia,700)
+
+            psi_t_p = np.vstack((psia,psib,psic))
+            if ms[0] == 'GPU':
                 psi_t_p = cp.asarray(psi_t_p)
-
 
 else:
     all_geoms = {}
@@ -1670,16 +1687,16 @@ else:
     r.sort()
 
     Energs = np.zeros((len(elem[1:]),len(r)))
-    for a2 in range(len(energs)):
+    for a2 in range(len(Energs)):
         for a3 in range(len(r)):
             Energs[a2,a3] = all_geoms[r[a3]][a2]
-    
+
     r = np.array(r)
-        
+
     T_r = TFG(r)
     D_r = DF(r)
-    
-    
+
+
     n= len(Energs)
     Grr_d = {}
     dGrr_dr_d = {}
@@ -1688,19 +1705,19 @@ else:
     ms = fg[0].split()
     for a10 in range(len(ind3)):
         rvec = all_g[ind3[a10]]
-        Grr_d[ind3[a10]],dGrr_dr_d[ind3[a10]],Vpd[ind3[a10]] = G_mel(firstl[0],'1',ms[1:int(ms[0])+1],rvec)
+        Grr_d[ind3[a10]],dGrr_dr_d[ind3[a10]],Vpd[ind3[a10]] = G_mel(firstl[0],'1',ms[2:int(ms[1])+2],rvec)
 
-    Grr = np.zeros((len(r),len(R)))
-    dGrr_dr = np.zeros((len(r),len(R)))
-    Vp = np.zeros((len(r),len(R)))
+    Grr = np.zeros((len(r),len(r)))
+    dGrr_dr = np.zeros((len(r),len(r)))
+    Vp = np.zeros((len(r),len(r)))
 
     for a11 in range(len(r)):
-        for a12 in range(len(R)):
+      for a12 in range(len(r))
 
-            Grr[a11,a12] = Grr_d[(np.around(r[a11],decimals=3),np.around(R[a12],decimals=3))]
-            dGrr_dr[a11,a12] = dGrr_dr_d[(np.around(r[a11],decimals=3),np.around(R[a12],decimals=3))]
-            Vp[a11,a12] = Vpd[(np.around(r[a11],decimals=3),np.around(R[a12],decimals=3))]
-    
+            Grr[a11,a12] = Grr_d[r[a11]]
+            dGrr_dr[a11,a12] = dGrr_dr_d[r[a11]]
+            Vp[a11,a12] = Vpd[r[a11]]
+
     if len(nacmes) > 0:
 
         nacms_r = {}
@@ -1711,11 +1728,11 @@ else:
                 nac_v = np.array(nacmes[a5][a6].split(),dtype=float)  #Notice that it is very important for the data in the nacme files to have the same order as the data in the energs file.
                 if a5 == 0:
                     rvec = all_g[ind2[a6-1]]
-                    nacms_r[ind2[a6-1]] = [nacme_calc(ms[-1],ms[1:int(ms[0])+1],nac_v,0.,0.,0.,rvec)]
+                    nacms_r[ind2[a6-1]] = [nacme_calc(ms[-1],ms[2:int(ms[1])+2],nac_v,0.,0.,0.,rvec)]
 
                 else:
                     rvec = all_g[ind2[a6-1]]
-                    nacms_r[ind2[a6-1]].append(nacme_calc(ms[-2],ms[1:int(ms[0])+1],nac_v,0.,0.,0.,rvec))
+                    nacms_r[ind2[a6-1]].append(nacme_calc(ms[-1],ms[2:int(ms[1])+2],nac_v,0.,0.,0.,rvec))
 
                     #checar multiplicar los nacmes por la transformacion inversa a ver que me da...
 
@@ -1724,10 +1741,10 @@ else:
 
         for a7 in range(len(nacmes)):
             for a8 in range(len(r)):
-                    Nacms_r[a7,a8] = nacms_r[( np.around(r[a8],decimals=3), np.around(R[a9],decimals=3) )][a7]
+                    Nacms_r[a7,a8] = nacms_r[ r[a8] ][a7]
 
         dnacmsr_dr = np.zeros((len(nacmes), len(r)))
-        for a9 in range(len(Nacms_r)):  
+        for a9 in range(len(Nacms_r)):
             nacm_tck = itp.splrep(r,Nacms_r[a9])
             dnacmsr_dr[a9] = itp.splev(nacm_tck,der=1)
 
@@ -1737,7 +1754,7 @@ else:
         for n2 in range(len(Energs)):
             H_mat[n2*len(Energs):(n2+1)*len(Energs), n2*len(Energs):(n2+1)*len(Energs)] = Energs[n2]*np.eye(len(r)) + Grr*T_r + dGrr_dr*D_r + Vp*np.eye(len(r))
             for n3 in range(n2,len(Energs)):
-                H_mat[n2*len(Energs):(n2+1)*len(Energs), n3*len(Energs):(n3+1)*len(Energs)] = G_rr*nacms_r[l]*D_r + G_rr*nacms_r[l]*nacms_r[l] + G_rr*dnacmsr_dr[l] + dGrr_dr*nacms_r[l]
+                H_mat[n2*len(Energs):(n2+1)*len(Energs), n3*len(Energs):(n3+1)*len(Energs)] = Grr*nacms_r[l]*D_r + Grr*nacms_r[l]*nacms_r[l] + Grr*dnacmsr_dr[l] + dGrr_dr*nacms_r[l]
                 l+=1
 
     if len(nacmes) == 0:
@@ -1754,7 +1771,7 @@ else:
         sigma_r = float(sigma_r.replace(',',''))
         p_r = float(p_r.replace(',',''))
 
-        Psi0 = np.exp( -(r_m-r0)**2./sigma_r )*np.exp(1j*p_r*(r_m-r0))    #Initial psi as a Gaussian wavepacket. Change if wanted
+        Psi0 = np.exp( -(r-r0)**2./sigma_r )*np.exp(1j*p_r*(r-r0))    #Initial psi as a Gaussian wavepacket. Change if wanted
 
         print('Introduce the electronic state in which the wave packet starts, 0 for ground state, 1 for S1, ..., n for Sn')
         st = int(input())
@@ -1768,7 +1785,7 @@ else:
 
         print('Introduce the electronic state in which the wave packet starts, 0 for ground state, 1 for S1, ..., n for Sn')
         st = int(input())
-    
+
     else:
         print('Sorry! Not available')
         print('exit')
@@ -1779,23 +1796,23 @@ else:
     psi_t = (1./np.sqrt(np.dot(np.conj(psi_t),psi_t)))*psi_t
 
     fpd = open('poblaciones.txt','w')
-    fpd.write('time  P1    P2   ... \n')      
+    fpd.write('time  P1    P2   ... \n')
     for p in range(1,len(time)):
-        psi_t = cheb_prop(psi_t, np.min(energs)-0.3, np.max(e0)+0.3, H_mat, time[p-1], time[p])
-        
+        psi_t = cheb_prop(psi_t, np.min(energs)-0.3, np.max(energs)+0.3, H_mat, time[p-1], time[p])
+
         fpd.write('%.3f\t' %(time[p]/41.34))
         for aa in range(len(Energs)):
             psi_t_a = psi_t[aa*len(r):(aa+1)*len(r)]
-            pa = np.dot(np.conj(pop_t),pop_t)
-            if aa == len(Energs)-1
+            pa = np.dot(np.conj(psi_t_a),psi_t_a)
+            if aa == len(Energs)-1:
                 fpd.write('%.5f\n')
             else:
                 fpd.write('%.5f\t')
 
-        
+
             if p%20 == 0:   #Graph the function. Modify at will.
                 plt.plot(r,(np.conj(psi_t_a)*psi_t_a).real,label='S$_%d$' %aa)
                 plt.legend()
                 plt.savefig('psi-S%d-%d.png' %(aa,p))
                 plt.clf()
-            
+
